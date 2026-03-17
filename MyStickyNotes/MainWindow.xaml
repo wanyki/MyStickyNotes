@@ -4,22 +4,31 @@
         Title="备忘录" Height="300" Width="250"
         WindowStyle="None" 
         AllowsTransparency="True" 
-        Background="#800078D7"
-        MouseLeftButtonDown="Window_MouseLeftButtonDown">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="30"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ResizeMode="CanResizeWithGrip">
 
-        <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Window_MouseLeftButtonDown">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                <TextBlock Text="T" Background="#FF68A32C" Foreground="White" Padding="4,0" Margin="0,0,5,0" FontWeight="Bold"/>
-                <TextBlock Text="备忘" Foreground="White" />
-            </StackPanel>
+    <Border BorderThickness="1" BorderBrush="#66FFFFFF" Background="#33000000">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="30"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="T" Background="#FF68A32C" Foreground="White" Padding="4,0" Margin="0,0,5,0" FontWeight="Bold"/>
+                    <TextBlock Text="备忘" Foreground="White">
+                        <TextBlock.Effect>
+                            <DropShadowEffect ShadowDepth="1" BlurRadius="2" Color="Black" Opacity="0.8"/>
+                        </TextBlock.Effect>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+
+            <ListBox x:Name="MemoList" Grid.Row="1" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            </ListBox>
         </Grid>
-
-        <ListBox x:Name="MemoList" Grid.Row="1" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-        </ListBox>
-    </Grid>
+    </Border>
 </Window>

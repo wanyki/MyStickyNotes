@@ -1,19 +1,23 @@
-﻿using System.IO; // 🌟 新增：用来读写文件的工具包
+﻿using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace MyStickyNotes
 {
     public partial class MainWindow : Window
     {
-        string dataFilePath = "memos.txt"; // 存档文件就叫这个名字，保存在软件旁边
-
+        string dataFilePath = "memos.txt";
+        // 🌟 召唤托盘图标的变量
+        private System.Windows.Forms.NotifyIcon trayIcon;
         public MainWindow()
         {
             InitializeComponent();
-            LoadMemos(); // 🌟 启动时第一件事：读取本地存档！
+            LoadMemos();
+            // 🌟 启动时，配置并显示右下角的托盘图标
+            SetupTrayIcon();
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -24,7 +28,6 @@ namespace MyStickyNotes
             }
         }
 
-        // 🌟 读取存档的魔法
         private void LoadMemos()
         {
             if (File.Exists(dataFilePath))
@@ -34,17 +37,16 @@ namespace MyStickyNotes
                 {
                     if (line.Length >= 2)
                     {
-                        bool isDone = line.StartsWith("1|"); // 1|代表划了删除线
-                        string text = line.Substring(2);     // 截取后面的真实文字
-                        AddMemo(text, -1, isDone, false);    // false代表读取时先不着急保存
+                        bool isDone = line.StartsWith("1|");
+                        string text = line.Substring(2);
+                        AddMemo(text, -1, isDone, false);
                     }
                 }
             }
-            // 读取完历史记录后，永远在最下面补一个空行，方便你直接打字
             AddMemo("", -1, false, false);
         }
 
-        // 🌟 保存存档的魔法
+        // 🌟 修复了黄色警告：更新了查找文字的正确路径
         private void SaveMemos()
         {
             try
@@ -52,70 +54,74 @@ namespace MyStickyNotes
                 List<string> lines = new List<string>();
                 foreach (ListBoxItem item in MemoList.Items)
                 {
-                    Grid row = item.Content as Grid;
-                    if (row == null) continue;
+                    // 严谨地逐层拨开我们做的“俄罗斯套娃”，寻找文字
+                    if (item.Content as Border is Border border &&
+                        border.Child as Grid is Grid rowGrid &&
+                        rowGrid.Children.Count > 1 &&
+                        rowGrid.Children[1] as Grid is Grid container &&
+                        container.Children.Count > 0 &&
+                        container.Children[0] as TextBlock is TextBlock display)
+                    {
+                        if (string.IsNullOrWhiteSpace(display.Text)) continue;
 
-                    Grid container = row.Children[1] as Grid;
-                    TextBlock display = container.Children[0] as TextBlock;
-
-                    // 如果这一行连一个字都没写，就不当做记录保存它
-                    if (string.IsNullOrWhiteSpace(display.Text)) continue;
-
-                    bool isDone = display.TextDecorations == TextDecorations.Strikethrough;
-                    string prefix = isDone ? "1|" : "0|"; // 拼个暗号：0|代表没做完，1|代表做完了
-                    lines.Add(prefix + display.Text);
+                        bool isDone = display.TextDecorations == TextDecorations.Strikethrough;
+                        string prefix = isDone ? "1|" : "0|";
+                        lines.Add(prefix + display.Text);
+                    }
                 }
-                File.WriteAllLines(dataFilePath, lines); // 把暗号和文字统统写进硬盘里！
+                File.WriteAllLines(dataFilePath, lines);
             }
-            catch { } // 防止意外报错
+            catch { }
         }
 
-        // 终极完美版“制造备忘录”机器：支持自动换行 + 存档记录
         private void AddMemo(string text, int insertIndex = -1, bool isDone = false, bool autoSave = true)
         {
             ListBoxItem listItem = new ListBoxItem();
-            listItem.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+            listItem.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Stretch;
             listItem.Background = System.Windows.Media.Brushes.Transparent;
             listItem.Focusable = false;
 
-            // 🌟 核心改进：把横向排列换成 Grid（表格结构），这样超出窗口宽度才会自动换行！
+            // 创建黑色阴影
+            System.Windows.Media.Effects.DropShadowEffect textShadow = new System.Windows.Media.Effects.DropShadowEffect();
+            textShadow.ShadowDepth = 1;
+            textShadow.BlurRadius = 2;
+            textShadow.Color = Colors.Black;
+            textShadow.Opacity = 0.8;
+
             Grid rowGrid = new Grid();
             rowGrid.Margin = new Thickness(0, 5, 0, 5);
-            rowGrid.ColumnDefinitions.Add(new ColumnDefinition() { Width = GridLength.Auto }); // 第一列：刚好装下图标
-            rowGrid.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(1, GridUnitType.Star) }); // 第二列：霸占剩下的所有宽度，用来挤压文字换行
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition() { Width = GridLength.Auto });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(1, GridUnitType.Star) });
 
-            // 图标
             TextBlock icon = new TextBlock();
             icon.Text = "📄 ";
             icon.Foreground = System.Windows.Media.Brushes.LightGreen;
-            icon.VerticalAlignment = VerticalAlignment.Top; // 文字换行变多行后，图标靠最上对齐比较好看
-            icon.Margin = new Thickness(0, 3, 0, 0); // 稍微往下挪一点点，和第一行文字对齐
-            Grid.SetColumn(icon, 0); // 把图标塞进第一列
+            icon.VerticalAlignment = VerticalAlignment.Top;
+            icon.Margin = new Thickness(0, 3, 0, 0);
+            icon.Effect = textShadow;
+            Grid.SetColumn(icon, 0);
 
-            // 文字容器
             Grid textContainer = new Grid();
             textContainer.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(textContainer, 1); // 把文字容器塞进第二列
+            Grid.SetColumn(textContainer, 1);
 
-            // 固定文字
             TextBlock displayContent = new TextBlock();
             displayContent.Text = text;
             displayContent.Foreground = System.Windows.Media.Brushes.White;
             displayContent.FontSize = 16;
             displayContent.Margin = new Thickness(2, 0, 0, 0);
-            displayContent.TextWrapping = TextWrapping.Wrap; // 🌟 核心改进：允许自动换行！
+            displayContent.TextWrapping = TextWrapping.Wrap;
+            displayContent.Effect = textShadow;
 
-            // 恢复删除线状态
             if (isDone) displayContent.TextDecorations = TextDecorations.Strikethrough;
 
-            // 输入框
             TextBox editContent = new TextBox();
             editContent.Text = text;
             editContent.Foreground = System.Windows.Media.Brushes.White;
             editContent.FontSize = 16;
             editContent.Background = System.Windows.Media.Brushes.Transparent;
             editContent.BorderThickness = new Thickness(0);
-            editContent.TextWrapping = TextWrapping.Wrap; // 🌟 核心改进：允许自动换行！
+            editContent.TextWrapping = TextWrapping.Wrap;
 
             if (text == "")
             {
@@ -131,7 +137,6 @@ namespace MyStickyNotes
             textContainer.Children.Add(displayContent);
             textContainer.Children.Add(editContent);
 
-            // 回车事件
             editContent.KeyDown += (s, e) => {
                 if (e.Key == Key.Enter)
                 {
@@ -141,52 +146,100 @@ namespace MyStickyNotes
                     displayContent.Visibility = Visibility.Visible;
 
                     int currentIndex = MemoList.Items.IndexOf(listItem);
-                    AddMemo("", currentIndex + 1); // 裂变新行
-                    SaveMemos(); // 🌟 打完字，立刻保存数据！
+                    AddMemo("", currentIndex + 1);
+                    SaveMemos();
                 }
             };
 
-            // 右键菜单
+            // 🌟 核心改进：完美复刻你的右键菜单
             ContextMenu menu = new ContextMenu();
-            MenuItem modifyMenu = new MenuItem();
-            modifyMenu.Header = "修改内容";
-            modifyMenu.Click += (s, e) => {
+
+            // 1. 复制 (终极核武器：多线程并行处理)
+            MenuItem copyMenu = new MenuItem();
+            copyMenu.Header = "复制(C)";
+            copyMenu.Click += (s, e) => {
+                // 🌟 第一步：先在主界面瞬间把文字“抄”下来
+                string textToCopy = displayContent.Text;
+
+                if (!string.IsNullOrEmpty(textToCopy))
+                {
+                    // 🌟 第二步：召唤一个隐形的“后台替身”（独立线程）去处理剪贴板
+                    System.Threading.Thread thread = new System.Threading.Thread(() =>
+                    {
+                        try
+                        {
+                            Clipboard.SetText(textToCopy);
+                        }
+                        catch { } // 就算替身被系统卡死，也绝对牵连不到主界面
+                    });
+
+                    // Windows 规定：动剪贴板的替身，必须挂上这个“STA”专属牌照
+                    thread.SetApartmentState(System.Threading.ApartmentState.STA);
+                    thread.IsBackground = true; // 随叫随到，用完即焚
+                    thread.Start(); // 替身出发！主界面直接拍拍屁股走人！
+                }
+            };
+
+            // 2. 删除
+            MenuItem deleteMenu = new MenuItem();
+            deleteMenu.Header = "删除(D)";
+            deleteMenu.Click += (s, e) => {
+                MemoList.Items.Remove(listItem);
+                SaveMemos();
+            };
+
+            // 3. 重命名 (也就是我们之前的修改内容)
+            MenuItem renameMenu = new MenuItem();
+            renameMenu.Header = "重命名(M)";
+            renameMenu.Click += (s, e) => {
                 displayContent.Visibility = Visibility.Collapsed;
                 editContent.Visibility = Visibility.Visible;
                 editContent.Focus();
                 editContent.CaretIndex = editContent.Text.Length;
             };
 
+            // 分割线
+            Separator separator = new Separator();
+
+            // 4. 删除线 (动态改变名字)
             MenuItem strikeMenu = new MenuItem();
-            strikeMenu.Header = "添加/移除删除线";
+            strikeMenu.Header = isDone ? "移除删除线" : "添加删除线";
             strikeMenu.Click += (s, e) => {
                 if (displayContent.TextDecorations == TextDecorations.Strikethrough)
+                {
                     displayContent.TextDecorations = null;
+                    strikeMenu.Header = "添加删除线"; // 改变菜单文字
+                }
                 else
+                {
                     displayContent.TextDecorations = TextDecorations.Strikethrough;
-
-                SaveMemos(); // 🌟 划线状态改变，立刻保存！
+                    strikeMenu.Header = "移除删除线"; // 改变菜单文字
+                }
+                SaveMemos();
             };
 
-            MenuItem deleteMenu = new MenuItem();
-            deleteMenu.Header = "删除(D)";
-            deleteMenu.Click += (s, e) => {
-                MemoList.Items.Remove(listItem);
-                SaveMemos(); // 🌟 删除记录，立刻保存！
-            };
-
-            menu.Items.Add(modifyMenu);
-            menu.Items.Add(strikeMenu);
+            // 按你截图的顺序组装菜单
+            menu.Items.Add(copyMenu);
             menu.Items.Add(deleteMenu);
+            menu.Items.Add(renameMenu);
+            menu.Items.Add(separator);
+            menu.Items.Add(strikeMenu);
 
             listItem.ContextMenu = menu;
             displayContent.ContextMenu = menu;
             editContent.ContextMenu = menu;
 
-            // 组装最终的一行
             rowGrid.Children.Add(icon);
             rowGrid.Children.Add(textContainer);
-            listItem.Content = rowGrid;
+
+            Border clickBorder = new Border();
+            clickBorder.Background = System.Windows.Media.Brushes.Transparent;
+
+            // 🌟 修复了红色报错：是 Child 不是 Content！
+            clickBorder.Child = rowGrid;
+            clickBorder.ContextMenu = menu;
+
+            listItem.Content = clickBorder;
 
             if (insertIndex == -1)
                 MemoList.Items.Add(listItem);
@@ -198,7 +251,47 @@ namespace MyStickyNotes
                 editContent.Loaded += (s, e) => editContent.Focus();
             }
 
-            if (autoSave) SaveMemos(); // 🌟 如果不是在读取文件，就执行保存
+            if (autoSave) SaveMemos();
+        }
+        // 🌟 配置右下角托盘图标的具体逻辑
+        private void SetupTrayIcon()
+        {
+            trayIcon = new System.Windows.Forms.NotifyIcon();
+            // 自动提取软件本身的图标
+            trayIcon.Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            trayIcon.Text = "极简备忘录"; // 鼠标悬停时显示的文字
+            trayIcon.Visible = true;
+
+            // 🌟 左键双击图标：隐藏或显示便签
+            trayIcon.DoubleClick += (s, e) =>
+            {
+                if (this.IsVisible) this.Hide();
+                else this.Show();
+            };
+
+            // 🌟 右键菜单
+            System.Windows.Forms.ContextMenuStrip menu = new System.Windows.Forms.ContextMenuStrip();
+
+            menu.Items.Add("显示 / 隐藏", null, (s, e) => {
+                if (this.IsVisible) this.Hide();
+                else this.Show();
+            });
+
+            menu.Items.Add("-"); // 一条分割线
+
+            menu.Items.Add("彻底退出", null, (s, e) => {
+                trayIcon.Dispose(); // 退出前把图标销毁，不然会残留在右下角
+                System.Windows.Application.Current.Shutdown();
+            });
+
+            trayIcon.ContextMenuStrip = menu;
+        }
+
+        // 🌟 防止按 Alt+F4 时软件关掉，改成隐藏
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            e.Cancel = true; // 拦截关闭事件
+            this.Hide();     // 只是隐藏起来
         }
     }
 }
