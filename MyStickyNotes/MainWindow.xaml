@@ -1,0 +1,25 @@
+﻿<Window x:Class="MyStickyNotes.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="备忘录" Height="300" Width="250"
+        WindowStyle="None" 
+        AllowsTransparency="True" 
+        Background="#800078D7"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="T" Background="#FF68A32C" Foreground="White" Padding="4,0" Margin="0,0,5,0" FontWeight="Bold"/>
+                <TextBlock Text="备忘" Foreground="White" />
+            </StackPanel>
+        </Grid>
+
+        <ListBox x:Name="MemoList" Grid.Row="1" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        </ListBox>
+    </Grid>
+</Window>
