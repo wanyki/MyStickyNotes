@@ -7,10 +7,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>app_icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="app_icon.ico" />
   </ItemGroup>
 
 </Project>
